@@ -16,9 +16,11 @@ const int BLUE_LED_PIN = D4; // Blue LED
 
 //#define STEPPERS_LINE_STEPS 2664
 //#define STEPPERS_TURN_STEPS 1512
-#define STEPPERS_LINE_STEPS 2664
-#define STEPPERS_TURN_STEPS 2048
+#define STEPPERS_LINE_STEPS 2048 // one complete round 
+#define STEPPERS_TURN_STEPS 1024 // half round
 // 2048 should be the complete turn
+#define STEPS 4096
+#define MAX_SPEED 40
 
 
 uint8_t status = 1; // stopped
@@ -26,12 +28,11 @@ uint8_t old_status = 1;
 
 
 // GPIO Pins for Motor Driver board
-#define STEPS 4096
 
 Stepper stepperLeft(STEPS / 2, D9, D1, D2, D3);
 Stepper stepperRight(STEPS / 2, D8, D7, D6, D5);
 
-uint8_t speed = 2; // RPM
+uint8_t speed = 20; // RPM
 uint8_t test_steps = STEPPERS_TURN_STEPS;
 WiFiServer server(80);
 
@@ -91,23 +92,12 @@ void engine() {
         stepperRight.step(-1);
         break;
     case 6: // Left
-        if ( ! steps_left ) {
-            steps_left = 1 + STEPPERS_TURN_STEPS / 8;
-        }
-        stepperLeft.step(1);
-        stepperRight.step(1);
+        stepperLeft.step(-1);
         break;
     case 7: // Right
-        if ( ! steps_left ) {
-            steps_left = 1 + STEPPERS_TURN_STEPS / 8;
-        }
-        stepperLeft.step(-1);
-        stepperRight.step(-1);
+        stepperRight.step(1);
         break;
     case 8: // Step
-        if ( ! steps_left ) {
-            steps_left = 1 + STEPPERS_TURN_STEPS;
-        }
         stepperLeft.step(-1);
         stepperRight.step(1);
         break;
@@ -194,8 +184,8 @@ void loop()
 
     if ( req.indexOf("/p") != -1) {
         speed += 5;
-        if ( speed > 30) {
-            speed = 30;
+        if ( speed > MAX_SPEED) {
+            speed = MAX_SPEED;
         }
         stepperLeft.setSpeed(speed);
         stepperRight.setSpeed(speed);
@@ -216,8 +206,8 @@ void loop()
     "Content-Type: text/html\r\n\r\n"
     "<!DOCTYPE HTML>\r\n<html><body><head><style type=\"text/css\">"
     "* {font-family: arial;}"
-    "table {width:100%; max-width: 600px; padding: 3px;}"
-    "td {width:30%; border: solid 2px grey;  text-align: center; }"
+    "table {width:100%; max-width: 600px; padding: 3px; font-size: 200%; }"
+    "td {width:30%; border: solid 2px grey;  text-align: center; border-radius: 20%}"
     "td a {display:inline-block; font-weight: bold; valign: middle; padding: 40px 0; width: 100%;}"
     ""
     "</style></head>\r\n"
@@ -239,7 +229,7 @@ void loop()
     "</tr>"
     "<tr>"
         "<td><a href=\"/p\">+10</a></td>"
-        "<td></td>"
+        "<td><a href=\"/s\">Step</a></td>"
         "<td><a href=\"/m\">-10</a></td>"
     "</tr>"
     "</ul>"
