@@ -1,5 +1,5 @@
 #include <ESP8266WiFi.h>
-#include <Stepper.h>
+#include <AccelStepper.h>
 
 //////////////////////
 // WiFi Definitions //
@@ -9,26 +9,25 @@ const char *password = "NodeBot1"; // 8 char min
 
 /////////////////////
 // Pin Definitions //
-/////////////////////
+/////////////////////s
 
 const int RED_LED_PIN = D0; // Red LED
 const int BLUE_LED_PIN = D4; // Blue LED
 
 char command = 'h'; // halted
-char old_command = 'h'; // FIXME: unused
 
 bool immediate_command = true;
 
+// Useful for testing: enter a sequence
 String commands = "";
 uint8_t stack_pointer = 0;
 
 
-#include <AccelStepper.h>
 
 #define MAX_SPEED 1000
 #define DEFAULT_SPEED 700
-#define STEPPERS_LINE_STEPS 4096
-#define STEPPERS_TURN_STEPS 2048
+#define STEPPERS_LINE_STEPS 2664
+#define STEPPERS_TURN_STEPS 1512
 #define HALFSTEP 8
 
 // Motor pin definitions
@@ -109,7 +108,6 @@ void processCommand()
                 forceStop();
             }
             immediate_command = false;
-            old_command = command;
             // Get command
             command = commands.charAt(stack_pointer);
             // Advance the SP
@@ -121,13 +119,14 @@ void processCommand()
                     repeat = c - '0';
                     stack_pointer++;
                 }
-                if ( command == 'G' ) // GOTO
+                if ( command == 'G' ) // GOTO destinations
                 {
                     stack_pointer = repeat;
                     repeat = 1;
                     if ( stack_pointer < commands.length() )
                     {
                         command = commands.charAt( stack_pointer );
+                        stack_pointer++;
                     }
                     else // Error
                     {
@@ -314,11 +313,14 @@ void loop()
     
     client.flush();
 
+    // Send the response to the client
+    // The client will actually be disconnected
+    // when the function returns and 'client' object is detroyed
     // Prepare the response. Start with the common header:
-    String s = "HTTP/1.1 200 OK\r\n"
+    client.print(F("HTTP/1.1 200 OK\r\n"
     "Content-Type: text/html\r\n\r\n"
     "<!DOCTYPE HTML>\r\n<html><head><style type=\"text/css\">"
-    "<meta name=\"viewport\" content=\"target-densitydpi=device-dpi; width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;\" />"
+    "<!--meta name=\"viewport\" content=\"target-densitydpi=device-dpi; width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;\" /-->"
     "* {font-family: arial; font-size: 80px;}"
     "table {width:100%; max-width: 1000px; padding: 10px;}"
     "td {width:30%; border: solid 2px grey;  text-align: center; border-radius: 10%;}"
@@ -334,7 +336,7 @@ void loop()
     "<table><tr>"
         "<td class=\"i\"><a href=\"/h\">Stop</a></td>"
         "<td class=\"i\"><a href=\"/f\">Forward</a></td>"
-        "<td><a href=\"/t\">Test</a></td>"
+        "<td></td>"
     "</tr>"
     "<tr>"
         "<td><a href=\"/L\">Turn Left</a></td>"
@@ -352,11 +354,8 @@ void loop()
         "<td class=\"i\"><a href=\"/m\">-10</a></td>"
     "</tr>"
     "</table></div>"
+    "<div>Syntax: S(tep) L(eft) R(ight) G(oTo)x U(-turn) </div>"
     "<form onsubmit=\"this.action+=this.c.value;this.submit()\" action=\"/cmd/\" method=\"get\"><input name=\"c\" type=\"text\" /></input> <button type=\"submit\">Send</button></form>"
-    "</body></html>\n";
+    "</body></html>\n"));
 
-    // Send the response to the client
-    client.print(s);
-    // The client will actually be disconnected
-    // when the function returns and 'client' object is detroyed
 }
